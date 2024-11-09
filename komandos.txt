@@ -1,0 +1,48 @@
+1)
+
+perl script/sortgenome.pl --genomes-file seqdump.txt --sortedgenomes-file seqdump_sorted.txt
+
+2)
+
+./gclust -minlen 20 -memiden 97 -both -nuc -threads 8 -ext 1 -sparse 2 seqdump_sorted.txt > sorted_viral_sequences.fna.clustering.out
+
+3)
+
+powershell -Command "Select-String -Path 'sorted_viral_sequences.fna.clustering.out' -Pattern '\*' | ForEach-Object { if ($_ -match '>(\S+)\.\.\.') { $matches[1] } } | Set-Content -Path 'representative_ids.txt'"
+
+
+4)
+
+seqkit grep -f representative_ids.txt seqdump.txt | seqkit rmdup -s -o unique_representative_sequences.fasta
+
+5)
+
+makeblastdb -in unique_representative_sequences.fasta -dbtype nucl -out db/representative_sequences_db
+ 
+6)
+
+tblastn -query D3W8N4.fasta -db db/representative_sequences_db -out tblast_result.txt -evalue 10 -word_size 2 -outfmt "6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qseq sseq"
+
+7)
+
+run python script process_blast.py
+
+8)
+
+seqkit translate aligned_regions.fasta -o translated_proteins.fasta
+
+9)
+
+seqkit seq -m 800 translated_proteins.fasta -o filtered_proteins.fasta
+
+10)
+
+mafft --maxiterate --out aligned_proteins.fasta --localpair filtered_proteins.fasta --maxiterate 1000
+
+11)
+
+FastTree -gamma aligned_proteins.fasta > phylogenetic_tree.tree
+
+12)
+
+run python script analysis.py
